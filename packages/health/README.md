@@ -200,6 +200,7 @@ String uuid;
 HealthValue value;
 HealthDataType type;
 HealthDataUnit unit;
+HealthDevice device;
 DateTime dateFrom;
 DateTime dateTo;
 HealthPlatformType sourcePlatform;

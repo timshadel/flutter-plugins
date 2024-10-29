@@ -23,6 +23,9 @@ class HealthDataPoint {
   /// The unit of the data point.
   HealthDataUnit unit;
 
+  /// The device that is the source of this data point.
+  HealthDevice? device;
+
   /// The data point unit as a string.
   String get unitString => unit.name;
 
@@ -60,6 +63,7 @@ class HealthDataPoint {
     required this.value,
     required this.type,
     required this.unit,
+    this.device,
     required this.dateFrom,
     required this.dateTo,
     required this.sourcePlatform,
@@ -137,6 +141,17 @@ class HealthDataPoint {
         : Map<String, dynamic>.from(dataPoint['metadata'] as Map);
     final unit = dataTypeToUnit[dataType] ?? HealthDataUnit.UNKNOWN_UNIT;
     final String? uuid = dataPoint["uuid"] as String?;
+    final Map<String, dynamic>? deviceInfo = dataPoint["device"] == null
+        ? null
+        : Map<String, dynamic>.from(dataPoint['device'] as Map);
+    HealthDevice? device = null;
+    if (deviceInfo != null) {
+      device = HealthDevice(
+        manufacturer: deviceInfo["manufacturer"] as String?,
+        model: deviceInfo["model"] as String?,
+        type: deviceInfo["type"] as String?,
+      );
+    }
 
     // Set WorkoutSummary, if available.
     WorkoutSummary? workoutSummary;
@@ -154,6 +169,7 @@ class HealthDataPoint {
       value: value,
       type: dataType,
       unit: unit,
+      device: device,
       dateFrom: from,
       dateTo: to,
       sourcePlatform: Health().platformType,

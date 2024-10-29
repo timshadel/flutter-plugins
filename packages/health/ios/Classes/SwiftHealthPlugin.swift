@@ -851,6 +851,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+						"device": getDevice(from: sample) as Any,
                         "recording_method": (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? RecordingMethod.manual.rawValue
                             : RecordingMethod.automatic.rawValue,
@@ -912,6 +913,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+						"device": getDevice(from: sample) as Any,
                         "recording_method": (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true) ? RecordingMethod.manual.rawValue : RecordingMethod.automatic.rawValue,
                         "metadata": metadata
                     ]
@@ -936,6 +938,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+						"device": getDevice(from: sample) as Any,
                         "recording_method": (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true) ? RecordingMethod.manual.rawValue : RecordingMethod.automatic.rawValue,
                         "workout_type": self.getWorkoutType(type: sample.workoutActivityType),
                         "total_distance": sample.totalDistance != nil ? Int(sample.totalDistance!.doubleValue(for: HKUnit.meter())) : 0,
@@ -968,6 +971,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+						"device": getDevice(from: sample) as Any,
                     ]
                 }
                 DispatchQueue.main.async {
@@ -990,6 +994,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                             "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                             "source_id": sample.sourceRevision.source.bundleIdentifier,
                             "source_name": sample.sourceRevision.source.name,
+                            "device": getDevice(from: sample),
                             "recording_method": (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                                 ? RecordingMethod.manual.rawValue
                                 : RecordingMethod.automatic.rawValue
@@ -1029,7 +1034,18 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         
         HKHealthStore().execute(query)
     }
-    
+
+    private func getDevice(from sample: HKSample) -> [String: Any?]? {
+        let type = sample.sourceRevision.productType ?? sample.device?.hardwareVersion
+        guard let type else { return nil }
+        guard let device = sample.device else { return [ "type": type ] }
+        return [
+            "manufacturer": device.manufacturer,
+            "model": device.model,
+            "type": type
+        ]
+    }
+
     @available(iOS 14.0, *)
     private func fetchEcgMeasurements(_ sample: HKElectrocardiogram) -> NSDictionary {
         let semaphore = DispatchSemaphore(value: 0)
@@ -1061,6 +1077,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
             "source_id": sample.sourceRevision.source.bundleIdentifier,
             "source_name": sample.sourceRevision.source.name,
+			"device": getDevice(from: sample) as Any,
         ]
     }
     

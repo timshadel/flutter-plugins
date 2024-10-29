@@ -12,6 +12,9 @@ HealthDataPoint _$HealthDataPointFromJson(Map<String, dynamic> json) =>
       value: HealthValue.fromJson(json['value'] as Map<String, dynamic>),
       type: $enumDecode(_$HealthDataTypeEnumMap, json['type']),
       unit: $enumDecode(_$HealthDataUnitEnumMap, json['unit']),
+      device: json['device'] == null
+          ? null
+          : HealthDevice.fromJson(json['device'] as Map<String, dynamic>),
       dateFrom: DateTime.parse(json['dateFrom'] as String),
       dateTo: DateTime.parse(json['dateTo'] as String),
       sourcePlatform:
@@ -35,13 +38,6 @@ Map<String, dynamic> _$HealthDataPointToJson(HealthDataPoint instance) {
     'value': instance.value.toJson(),
     'type': _$HealthDataTypeEnumMap[instance.type]!,
     'unit': _$HealthDataUnitEnumMap[instance.unit]!,
-    'dateFrom': instance.dateFrom.toIso8601String(),
-    'dateTo': instance.dateTo.toIso8601String(),
-    'sourcePlatform': _$HealthPlatformTypeEnumMap[instance.sourcePlatform]!,
-    'sourceDeviceId': instance.sourceDeviceId,
-    'sourceId': instance.sourceId,
-    'sourceName': instance.sourceName,
-    'recordingMethod': _$RecordingMethodEnumMap[instance.recordingMethod]!,
   };
 
   void writeNotNull(String key, dynamic value) {
@@ -50,6 +46,14 @@ Map<String, dynamic> _$HealthDataPointToJson(HealthDataPoint instance) {
     }
   }
 
+  writeNotNull('device', instance.device?.toJson());
+  val['dateFrom'] = instance.dateFrom.toIso8601String();
+  val['dateTo'] = instance.dateTo.toIso8601String();
+  val['sourcePlatform'] = _$HealthPlatformTypeEnumMap[instance.sourcePlatform]!;
+  val['sourceDeviceId'] = instance.sourceDeviceId;
+  val['sourceId'] = instance.sourceId;
+  val['sourceName'] = instance.sourceName;
+  val['recordingMethod'] = _$RecordingMethodEnumMap[instance.recordingMethod]!;
   writeNotNull('workoutSummary', instance.workoutSummary?.toJson());
   writeNotNull('metadata', instance.metadata);
   return val;
@@ -219,6 +223,27 @@ const _$RecordingMethodEnumMap = {
   RecordingMethod.automatic: 'automatic',
   RecordingMethod.manual: 'manual',
 };
+
+HealthDevice _$HealthDeviceFromJson(Map<String, dynamic> json) => HealthDevice(
+      manufacturer: json['manufacturer'] as String?,
+      model: json['model'] as String?,
+      type: json['type'] as String?,
+    );
+
+Map<String, dynamic> _$HealthDeviceToJson(HealthDevice instance) {
+  final val = <String, dynamic>{};
+
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) {
+      val[key] = value;
+    }
+  }
+
+  writeNotNull('manufacturer', instance.manufacturer);
+  writeNotNull('model', instance.model);
+  val['type'] = instance.type;
+  return val;
+}
 
 HealthValue _$HealthValueFromJson(Map<String, dynamic> json) =>
     HealthValue()..$type = json['__type'] as String?;

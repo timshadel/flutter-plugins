@@ -24,6 +24,7 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.*
+import androidx.health.connect.client.records.metadata.Device
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -135,7 +136,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     ) {
         handler?.post { mResult?.error(errorCode, errorMessage, errorDetails) }
     }
-    
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         return false
     }
@@ -225,9 +226,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         } else {
             mResult?.success(true)
             Log.i("FLUTTER_HEALTH", "${permissionGranted.size} Health Connect permissions were granted!")
-            
+
             // log the permissions granted for debugging
-            Log.i("FLUTTER_HEALTH", "Permissions granted: $permissionGranted") 
+            Log.i("FLUTTER_HEALTH", "Permissions granted: $permissionGranted")
         }
     }
 
@@ -488,7 +489,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         }
         result.success(healthConnectStatus)
     }
-    
+
     /** Filter records by recording methods */
     private fun filterRecordsByRecordingMethods(
         recordingMethodsToFilter: List<Int>,
@@ -736,6 +737,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
                         for (rec in filteredRecords) {
                             val record = rec as ExerciseSessionRecord
+                            val deviceInfo = getDeviceFrom(record.metadata)
                             val distanceRequest =
                                 healthConnectClient.readRecords(
                                     ReadRecordsRequest(
@@ -845,6 +847,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                                             record.metadata
                                                 .dataOrigin
                                                 .packageName,
+                                    "device" to deviceInfo,
                                 ),
                             )
                         }
@@ -907,6 +910,39 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         }
     }
 
+    private fun getDeviceFrom(metadata: Metadata): Map<String, Any?>? {
+      val device = metadata.device
+      if (device == null) {
+        return null
+      }
+      val type: String =
+        when (device.type) {
+            Device.TYPE_CHEST_STRAP -> "chest_strap"
+            Device.TYPE_FITNESS_BAND -> "fitness_band"
+            Device.TYPE_HEAD_MOUNTED -> "head_mounted"
+            Device.TYPE_PHONE -> "phone"
+            Device.TYPE_RING -> "ring"
+            Device.TYPE_SCALE -> "scale"
+            Device.TYPE_SMART_DISPLAY -> "smart_display"
+            Device.TYPE_UNKNOWN -> "unknown"
+            Device.TYPE_WATCH -> "watch"
+            else -> "unknown"
+        }
+      var deviceInfo = mutableMapOf<String, Any>(
+          "type" to type
+      )
+
+      val manufacturer = device.manufacturer
+      val model = device.model
+      if (manufacturer != null) {
+        deviceInfo["manufacturer"] = manufacturer
+      }
+      if (model != null) {
+        deviceInfo["model"] = model
+      }
+      return deviceInfo
+    }
+
     private fun convertRecordStage(
         stage: SleepSessionRecord.Stage,
         dataType: String,
@@ -914,8 +950,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     ): List<Map<String, Any>> {
         var sourceName = metadata.dataOrigin
             .packageName
+        val deviceInfo = getDeviceFrom(metadata)
         return listOf(
-            mapOf<String, Any>(
+            mutableMapOf<String, Any>(
                 "uuid" to metadata.id,
                 "stage" to stage.stage,
                 "value" to
@@ -927,7 +964,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                 "date_to" to stage.endTime.toEpochMilli(),
                 "source_id" to "",
                 "source_name" to sourceName,
-            ),
+            ).also {
+              if (deviceInfo != null) it["device"] = deviceInfo
+            }.toMap(),
         )
     }
 
@@ -1008,10 +1047,11 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     // TODO: Find alternative to SOURCE_ID or make it nullable?
     private fun convertRecord(record: Any, dataType: String): List<Map<String, Any?>> {
         val metadata = (record as Record).metadata
+        val deviceInfo = getDeviceFrom(metadata)
         when (record) {
             is WeightRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1027,6 +1067,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1034,7 +1075,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is HeightRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1050,6 +1091,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1057,7 +1099,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is BodyFatRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1073,6 +1115,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1080,7 +1123,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is StepsRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to record.count,
@@ -1094,6 +1137,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1101,7 +1145,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is ActiveCaloriesBurnedRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1117,6 +1161,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1124,7 +1169,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is HeartRateRecord ->
                 return record.samples.map {
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to it.beatsPerMinute,
@@ -1135,6 +1180,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     )
@@ -1142,7 +1188,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is HeartRateVariabilityRmssdRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1157,6 +1203,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1164,7 +1211,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is BodyTemperatureRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1180,6 +1227,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1187,7 +1235,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is BodyWaterMassRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1203,6 +1251,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1210,7 +1259,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is BloodPressureRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1232,6 +1281,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1239,7 +1289,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is OxygenSaturationRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1255,6 +1305,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1262,7 +1313,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is BloodGlucoseRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1278,6 +1329,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1285,7 +1337,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is DistanceRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1301,6 +1353,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1308,7 +1361,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is HydrationRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1324,6 +1377,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1331,7 +1385,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is TotalCaloriesBurnedRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1347,6 +1401,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1354,7 +1409,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is BasalMetabolicRateRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1370,6 +1425,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1377,7 +1433,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is SleepSessionRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "date_from" to
@@ -1396,6 +1452,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     ),
@@ -1403,7 +1460,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is RestingHeartRateRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to
@@ -1418,6 +1475,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     )
@@ -1425,7 +1483,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is FloorsClimbedRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to record.floors,
@@ -1439,6 +1497,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     )
@@ -1446,7 +1505,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is RespiratoryRateRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to
                                 metadata.id,
                         "value" to record.rate,
@@ -1460,6 +1519,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     )
@@ -1526,6 +1586,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     )
@@ -1533,7 +1594,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             is MenstruationFlowRecord ->
                 return listOf(
-                    mapOf<String, Any>(
+                    mapOf<String, Any?>(
                         "uuid" to metadata.id,
                         "value" to record.flow,
                         "date_from" to record.time.toEpochMilli(),
@@ -1542,6 +1603,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         "source_name" to
                                 metadata.dataOrigin
                                     .packageName,
+                        "device" to deviceInfo,
                         "recording_method" to
                                         metadata.recordingMethod
                     )
