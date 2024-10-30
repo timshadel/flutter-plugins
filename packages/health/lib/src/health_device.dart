@@ -13,11 +13,16 @@ class HealthDevice {
   /// A way of identifying the type of device.
   String type;
 
+  /// Cache lowercase version of the type for `matches()`.
+  late String _lowerType;
+
   HealthDevice({
     this.manufacturer,
     this.model,
     String? type,
-  }): type = type ?? "unknown";
+  }): type = (type ?? "unknown") {
+    _lowerType = this.type.toLowerCase();
+  }
 
   /// Create a [HealthDataPoint] from json.
   factory HealthDevice.fromJson(Map<String, dynamic> json) =>
@@ -25,4 +30,8 @@ class HealthDevice {
 
   /// Convert this [HealthDataPoint] to json.
   Map<String, dynamic> toJson() => _$HealthDeviceToJson(this);
+
+  /// Check if this device matches the given type.
+  /// Nulls allowed for call site simplicity.
+  bool matches(String? otherType) => otherType?.toLowerCase() == _lowerType;
 }
